@@ -47,7 +47,7 @@ The application adopts a **Thick Model + Template Engine** architecture to ensur
 *   **Features**:
     *   **Heterogeneous Cohorts**: diverse randomization logic per cohort (e.g. diff block sizes).
     *   **Templates (`.sas.j2`)**: All SAS logic resides in maintainable Jinja2 templates, not python strings.
-    *   **Vendor Support**: Built-in support for **BioKnow (供应商A)** and **Shanhu (供应商B)** blind formats.
+    *   **Vendor Support**: Built-in support for **Supplier A** and **Supplier B** blind formats.
 
 ---
 
@@ -110,9 +110,9 @@ npm run dev
 ## 📜 Version History
 
 *   **v2.0 (2026-02-03)**: Web Migration, i18n, Visual Wizard.
-*   **v1.3 (2025-10-10)**: Added XLSX output support for Shanhu 5.X.
+*   **v1.3 (2025-10-10)**: Added XLSX output support for Supplier B 5.X.
 *   **v1.2 (2025-09-28)**: Fixed path gen bugs; optimized RTF paging; Enhanced CSV DSD options.
-*   **v1.1 (2025-09-19)**: Added Shanhu Lite support and Subject/Drug blind templates.
+*   **v1.1 (2025-09-19)**: Added Supplier B Lite support and Subject/Drug blind templates.
 *   **v1.0 (2025-09-17)**: Initial Release (Desktop).
 
 ---
