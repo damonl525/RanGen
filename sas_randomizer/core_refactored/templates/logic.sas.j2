@@ -1,0 +1,92 @@
+{# Jinja2 Template for Stratified Batch Logic #}
+{# Context: drug_config (DrugRandomizationConfig) #}
+
+{% set strata_counter = 1 %}
+
+{% for factor in drug_config.stratification_factors %}
+    {% if factor.batch_enabled %}
+        {% for level_name, batches in factor.batch_settings.levels.items() %}
+            /* Stratum {{ strata_counter }}: {{ factor.factor_name }}={{ level_name }} */
+            
+            {% set total_count = namespace(value=0) %}
+            {% for b in batches %}
+                {# Handle 'auto' quantity or convert to int #}
+                {% set qty = 10 if b.quantity == 'auto' else b.quantity %}
+                {% set total_count.value = total_count.value + qty %}
+            {% endfor %}
+            
+            StrataN = {{ strata_counter }};
+            do secorder=1 to {{ total_count.value }};
+                
+                {# Generate batch assignment logic #}
+                {% for b in batches %}
+                    {% set batch_idx = loop.index %}
+                    {# Note: In the original logic, parameters like &batch1_end were global macros. #}
+                    {# But here we have specific levels. The original Python logic generated params like &batch1_end_LevelName #}
+                    {# We should use literal values or locally scoped macro vars if possible to avoid conflicts. #}
+                    {# Actually, looking at the Python code, it generates specific logic statements. #}
+                    {# BUT, the parameter generation was in `_generate_batch_params_core`. #}
+                    {# If we want to be clean, we can just hardcode the thresholds here since we know them! #}
+                    
+                    {% set current_cumulative = namespace(value=0) %}
+                    {# Calculate cumulative for this batch #}
+                    {% for inner_b in batches[:loop.index] %}
+                         {% set inner_qty = 10 if inner_b.quantity == 'auto' else inner_b.quantity %}
+                         {% set current_cumulative.value = current_cumulative.value + inner_qty %}
+                    {% endfor %}
+                    
+                    {% if loop.first %}
+                        if secorder <= {{ current_cumulative.value }} then batch = {{ batch_idx }};
+                    {% elif not loop.last %}
+                        else if secorder <= {{ current_cumulative.value }} then batch = {{ batch_idx }};
+                    {% else %}
+                        else batch = {{ batch_idx }};
+                    {% endif %}
+                {% endfor %}
+                
+                secRand=rand("Uniform",0,1);
+                secRand_=rand("Uniform",0,1);
+                output;
+            end;
+            
+            {% set strata_counter = strata_counter + 1 %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+
+{# Fallback for independent batch settings if no strata enabled #}
+{# In schemas.py: independent_batch_settings: Dict[str, List[BatchItem]] #}
+{% if not drug_config.has_complex_batch_logic() and drug_config.independent_batch_settings %}
+    {% for level_name, batches in drug_config.independent_batch_settings.items() %}
+         /* Independent Batch: {{ level_name }} */
+         {% set total_count = namespace(value=0) %}
+         {% for b in batches %}
+            {% set qty = 10 if b.quantity == 'auto' else b.quantity %}
+            {% set total_count.value = total_count.value + qty %}
+         {% endfor %}
+         
+         StrataN = {{ strata_counter }};
+         do secorder=1 to {{ total_count.value }};
+             {% for b in batches %}
+                {% set batch_idx = loop.index %}
+                {% set current_cumulative = namespace(value=0) %}
+                {% for inner_b in batches[:loop.index] %}
+                     {% set inner_qty = 10 if inner_b.quantity == 'auto' else inner_b.quantity %}
+                     {% set current_cumulative.value = current_cumulative.value + inner_qty %}
+                {% endfor %}
+                
+                {% if loop.first %}
+                    if secorder <= {{ current_cumulative.value }} then batch = {{ batch_idx }};
+                {% elif not loop.last %}
+                    else if secorder <= {{ current_cumulative.value }} then batch = {{ batch_idx }};
+                {% else %}
+                    else batch = {{ batch_idx }};
+                {% endif %}
+            {% endfor %}
+            secRand=rand("Uniform",0,1);
+            secRand_=rand("Uniform",0,1);
+            output;
+         end;
+         {% set strata_counter = strata_counter + 1 %}
+    {% endfor %}
+{% endif %}

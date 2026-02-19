@@ -1,0 +1,90 @@
+%macro m_rpt(ds=, method=, dose=);
+
+    /* 第一步：排序生成_ds数据集 - 使用统一排序逻辑 */
+    proc sort data=&ds out=_ds;
+        by protocol_order protocol StrataN Strata catord category SubjNo;
+    run;
+
+    /* 第二步：生成SampleSize */
+    data SampleSize;
+        set _ds;
+        where catord = 1;
+        by protocol_order protocol StrataN Strata catord category SubjNo;
+        retain SampleSize;
+        if first.StrataN then SampleSize=1;
+        else SampleSize+1;
+        if last.StrataN;
+        keep StrataN protocol_order SampleSize;
+    run;
+
+    /* 第三步：生成最终_ds数据集 */
+    data _ds;
+    set _ds;
+        by protocol_order protocol StrataN Strata catord category SubjNo; 
+        retain RowNo pg stratan_;
+        if first.stratan then do; stratan_=stratan;pg=1; RowNo=1;end;  
+        else do;
+            RowNo+1;
+            if stratan_ ne stratan then do;pg=pg+1;stratan_=stratan;end;
+        end;
+    run;
+
+    data _ds;
+        merge _ds SampleSize;
+        by protocol_order StrataN;
+    run;
+
+    /* 第四步：按子方案排序重新排序最终数据 - 与最终output.rand排序保持一致 */
+    proc sort data=_ds;
+        by protocol_order protocol StrataN Strata catord category SubjNo;
+    run;
+
+    ods listing close;
+    %if %length(&Status) %then %do; 
+      ods rtf file="&_rootpath.\&Status\&studyID Rand List.rtf" style=randStyle bodytitle;
+    %end;
+    %else %do; 
+      ods rtf file="&_rootpath.\Final Delivery\&studyID Rand List.rtf" style=randStyle bodytitle;
+    %end;
+
+    Title "申办单位：&client";
+    Title2 "方案编号：&studyID";
+    Title3 "受试者随机分配表";
+    %if %length(&status) %then %do;
+      Title4 "&status";	
+      Title5 "随机方法：&method ";
+    %end;
+    %else %do;
+      Title4 "随机方法：&method ";
+    %end;
+
+    Footnote1  "编码单位: &company";
+    Footnote2 "编码日期：&sysdate9.";	
+
+    Proc report data=_ds nowd style(report)={outputwidth=100% protectspecialchars=off} style(column)={outputwidth=10% just=c}  style(lines)={background=white};
+    Column pg
+    StrataN Strata SampleSize Seed BlockSize SubjNo Arm
+    ;
+
+        define Pg /order noprint;
+
+
+    %if %index(&method,%str(分层)) %then %do;
+        define StrataN /order order=internal noprint;
+        define Strata /order "分层";
+    %end;
+        define SampleSize /order "例数";
+        define Seed / order order=data "种子";
+    %if %index(&method,%str(区组)) %then %do;
+        define BlockSize /order "区组长度";
+    %end;
+        define SubjNo /order=internal "随机化编号";
+        define Arm /"组别" ;
+
+
+        break after pg/page;
+    run;
+
+    ods rtf close;
+    ods listing;
+%mend m_rpt;

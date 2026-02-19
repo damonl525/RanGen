@@ -1,0 +1,167 @@
+{# Jinja2 Template for m_rpt_drug macro #}
+/****************************************************************
+* MACRO: m_rpt_drug
+* Purpose: Generate RTF report for drug list.
+****************************************************************/;
+%macro m_rpt_drug(ds=, drug=drug, drugby=drugcd, drugno=drugno, method=, units=);
+    
+    proc sort data=&Ds. out=drug1;by &drugno;run;
+
+    proc sql noprint;
+        select count(distinct StrataN)  into: stra from drug1;
+    quit;
+
+    %if &stra.>1 %then %do;
+        %do s=1 %to &stra.; 
+            data _null_;
+               set drug1 end=last;
+               where StrataN=&s.;
+               if _n_=1 then call symputx("start&s.",&drugno);
+               if last  then call symputx("end&s.",&drugno);
+            run;
+
+            proc sort data= &ds out=_ds;
+            where StrataN=&s.;
+            by &drugby &drugno;
+            run;
+
+            data _samplesize;
+                set _ds end=last;
+                    by &drugby &drugno;
+                    if first.&drugby then SampleSize=0;
+                    SampleSize+1;
+                    if last.&drugby then call symputx(cats('SampleSize'||strip(put(StrataN,best.)),&drugby),SampleSize);
+                    if last.&drugno then call symputx('blocksize',blocksize);
+            run;
+
+            data _ds;
+            set _ds;
+            by &drugby &drugno;
+            retain RowNo;
+            if first.&drugby then do;pg+1;RowNo=1;end;
+            else do;RowNo+1;end;
+            run;
+
+            data _ds drugsize;
+            set _ds;
+            by &drugby &drugno;
+            retain SampleSize;
+            if first.&drugby then SampleSize=1;
+            else SampleSize+1;
+            drugsize=strip(drugsize)||" "||cats("共有",strip(put(SampleSize,best.)),"&units");
+
+            if not missing(&drugby) then output _ds;
+            if last.&drugby then output drugsize;
+            run;
+
+            data _ds;
+                merge _ds drugsize(keep=StrataN &drugby drugsize rename=(drugsize=drugsize_));
+                by StrataN &drugby;
+                drugsize=drugsize_;
+            run;
+
+
+            proc sort data=_ds out=_ds1;
+            by StrataN pg &drugby &drugno;
+            run;
+
+            data _ds2_&s.;
+              length num scope $10000;
+               set _ds1;
+               by StrataN pg &drugby &drugno;
+               retain num;
+               if first.&drugby then num=drugno;
+               else num=catx("; ", num,drugno);
+               if last.&drugby;
+
+                if StrataN=&s. then scope="药物编号范围：&&start&s.-&&end&s.";
+
+                pg=pg+&s.*100;
+            run;
+        %end;
+
+        data _ds2;
+            set _ds2_:;
+        run;
+    %end;
+    %else %do;
+        data _null_;
+           set drug1 end=last;
+           if _n_=1 then call symputx("start",&drugno);
+           if last  then call symputx("end",&drugno);
+        run;
+
+        proc sort data= &ds out=_ds;
+        by &drugby &drugno;
+        run;
+
+        data _samplesize;
+            set _ds end=last;
+                by &drugby &drugno;
+                if first.&drugby then SampleSize=0;
+                SampleSize+1;
+                if last.&drugby then call symputx(cats('SampleSize',&drugby),SampleSize);
+                if last.&drugno then call symputx('seed',seed);
+                if last.&drugno then call symputx('blocksize',blocksize);
+        run;
+
+        data _ds;
+        set _ds;
+              by &drugby &drugno;
+              retain pg_add;
+               RowNo+1;
+        drugsize=strip(drugsize)||" "||cats("共有",symget(cats('SampleSize',drugcd)),"&units");
+        if first.&drugby then do; pg+1; RowNo=1;pg_add=0;end;
+        else if int(RowNo/440) > pg_add then do;pg+1; pg_add+1;end;*暂固定每页展示440个药物;
+        run;
+
+        proc sort data=_ds out=_ds1;
+        by pg &drugby &drugno;
+        run;
+
+        data _ds2;
+          length num $10000;
+           set _ds1;
+           by pg &drugby &drugno;
+           retain num;
+           if first.pg then num=drugno;
+           else num=catx("; ", num,drugno);
+           if last.pg;
+           scope="药物编号范围：&start.-&end.";
+        run;
+    %end;
+    
+    ods listing close;
+    ods rtf file="&_rootpath.\&Status\&studyID._Drug_List_&Status..rtf" style=randStyle bodytitle;
+    
+    %let ntitle=4;
+    Title "申办单位：&client";
+    Title2 "方案编号：&studyID";
+    Title3 "药物编码表";
+    Title4 "随机方法：&method";
+    %if %index(&method,%str(区组)) %then %do; 
+         Title%eval(&ntitle+1) "区组长度：&blocksize ";
+         %let ntitle=%eval(&ntitle+1);
+    %end;
+
+    Title%eval(&ntitle+1) "&status";
+
+    Footnote1  "编码单位: &company";
+    Footnote2 "编码日期：&sysdate9.";
+
+    Proc report data=_ds2 nowd style(report)={outputwidth=100% protectspecialchars=off} style(column)={outputwidth=10% just=c}  style(lines)={background=white};
+    Column pg &drug drugSize seed scope num;
+        define Pg/order noprint;
+        define &drug /"药物组别" style(column)=[cellwidth=10%] ;
+        define seed /"种子" style(column)=[cellwidth=10%] ;
+        define drugsize /"药物(规格)及数量"  style(column)=[cellwidth=10% just=left] ;
+        define scope/"药物编号范围" style(column)=[cellwidth=10% just=left] ;
+        define num /"药物编号" style(column)=[cellwidth=60% just=left] ;
+
+        break after pg/page;
+
+    run;
+
+    ods rtf close;
+    ods listing;
+%mend m_rpt_drug;

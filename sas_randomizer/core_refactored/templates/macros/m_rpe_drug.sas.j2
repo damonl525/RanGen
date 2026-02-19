@@ -1,0 +1,258 @@
+{# Jinja2 Template for m_rpe_drug macro #}
+/****************************************************************
+* MACRO: m_rpe_drug
+* Purpose: Export drug list to CSV with stratified batch support.
+****************************************************************/
+%macro m_rpe_drug(ds=drug,startNo=1,Prefix=,num_gap=0,secRand=N,seed=&drugseed,has_batch=N,batch_num=,batch1_end=,supplier={{ study.output_settings.supplier }});
+    data &ds.;
+        set &ds.;
+        seq=_n_;
+        proc sort;by drugno;
+    run;
+
+    /* Check if we have stratified batch configurations */
+    {# Jinja Logic to determine flags #}
+    {% set has_complex = drug_config.has_complex_batch_logic() %}
+    {% set has_strata_only = not has_complex and drug_config.stratification_factors %}
+    
+    %let has_strata_batches = {{ 1 if has_complex else 0 }};
+    %let has_strata_no_batches = {{ 1 if has_strata_only else 0 }};
+
+    /* Calculate Nstrata from the dataset */
+    proc sql noprint;
+        select max(StrataN) into :Nstrata from &ds.;
+    quit;
+
+    %if %upcase(&secRand.)=Y %then %do;
+        %let _len=%length(&StartNo);
+        %if &has_strata_no_batches = 1 or &has_strata_batches = 1 %then %do;
+            /* 有分层或批次时，计算每层的样本数量 */
+            proc sql noprint;
+                select count(*) into :total_num
+                from &ds.
+                where StrataN = 1;
+            quit;
+        %end;
+        %else %do;
+            /* 无分层和有批次时，使用原逻辑 */
+            data _total_num;
+                set &ds.  nobs=last_record point=last_record;
+                call symput("total_num",strip(compress(drugno,,"a")));
+                output;
+                stop;
+            run;
+        %end;
+                                       
+        data _secrand;
+            call streaminit(&seed.);
+            
+            %if &has_strata_batches = 1 %then %do;
+                /* Handle stratified batch configurations (Injected by Jinja2) */
+                {% include 'logic.sas.j2' %}
+            %end;
+            %else %if &has_strata_no_batches = 1 %then %do;
+                /* Handle stratified configurations without batches */
+                %do strata_i = 1 %to &Nstrata;
+                    StrataN = &strata_i;
+                    do secorder=1 to &total_num.;
+                        secRand=rand("Uniform",0,1);
+                        secRand_=rand("Uniform",0,1);
+                        output;
+                    end;
+                %end;
+            %end;
+            %else %do;
+                /* No batch configuration */
+                do secorder=1 to &total_num.;
+                    secRand=rand("Uniform",0,1);
+                    secRand_=rand("Uniform",0,1);
+                    output;
+                end;
+            %end;
+            proc sort;by %if &has_strata_batches = 1 %then %do; StrataN batch %end; %else %if &has_strata_no_batches = 1 %then %do; StrataN %end; secRand;
+        run;
+
+        data _secrand1;
+            set _secrand;
+            %if &has_strata_batches = 1 or &has_strata_no_batches = 1 %then %do;
+                drugno=cats("&prefix",put(_N_+&startNo-1+(StrataN-1)*&num_gap.,z&_len..));
+                secorder=secorder+10000*StrataN;
+            %end;
+            %else %do;
+                drugno=cats("&prefix",put(_N_+&startNo-1,z&_len..));
+            %end;
+            proc sort;by %if &has_strata_batches = 1 %then %do; StrataN batch %end; %else %if &has_strata_no_batches = 1 %then %do; StrataN %end; secRand_;
+        run;
+
+        data _secrand1_;
+            set _secrand1;
+            seq_=_n_;
+        run;
+
+        proc sort data=_secrand1;by drugno;run;
+        proc sort data=_secrand1_;by drugno;run;
+
+        data &ds.;
+            merge &ds. _secrand1 _secrand1_;
+            by drugno;
+            seq=seq_;
+            drop secRand seq_;
+        run;
+    %end;
+
+    data dsexport;
+        retain seq drugno drugcds drugsize symptons %if %upcase(&secRand.) = Y %then secorder;;
+        set &ds;
+        size="";
+        symptons="";
+        %if %upcase(&secRand.) ne Y %then secorder=seq;;
+        length pn VC SN LN expdate DD attr1 attr2 attr3 $100.;
+        pn="";*供应商B6.X Package Number;
+        VC="";*供应商B6.X Verification Code;
+        SN="";*供应商B6.X Site Number;
+        LN="";*供应商B6.X Lot Number;
+        
+        expdate="";*供应商B5.X 过期日期(Expiration Date);
+        DD="";*供应商B5.X 药物描述(Drug Description);
+        attr1="";*供应商B5.X Attribute1;
+        attr2="";*供应商B5.X Attribute2;
+        attr3="";*供应商B5.X Attribute3;
+
+        %if "&supplier." ne "供应商A" %then %do;
+            secorder=seq;*供应商B系统可实现中心到受试者随机发药，不需要盲底设置;
+        %end;
+
+        %if "&supplier" = "供应商B 5.X" and %upcase(&secRand.) = Y %then %do;*供应商B表示乱序后不需要区组与区组号;
+            bn=.;
+            rand=.;
+        %end;
+
+        label 
+            seq="序号"
+            DrugNo="治疗物品编号"
+            drug="治疗物品名称" 
+            size="子规格"
+            symptons="症型"
+            %if %upcase(&secRand.) = Y %then secorder="取药顺序号";
+        ;
+        keep seq drugno drugcds drugsize symptons secorder pn VC SN LN expdate DD attr1 attr2 attr3 bn rand;
+        proc sort;by seq;
+    run;
+
+    FILENAME new disk "&_rootpath.\\&Status\\&studyID._Drug_List_&Status..csv" ENCODING= "UTF-8";
+    data _null_;
+        set dsexport;
+        FILE new DSD DLM=',';
+        %if %upcase(&secRand.) ne Y %then %do;
+            if _n_=1 then do;
+                %if "&supplier" = "供应商A" %then %do;
+                    PUT @1 "项目名称,&protocol,,,,,,,,,,";
+                    put @1 "项目代码,&studyID,,,,,,,,,,";
+                    put @1 '序号,治疗物品编号,治疗物品代码,治疗物品名称,子规格,症型';
+                %end;
+                %else %if "&supplier" = "供应商B 6.X" %then %do;
+                    put @1 '*Sequence Number,Package Number,*Kit Number,*Material Name,*Random Number,Verification Code,Site Number,Lot Number';
+                %end;
+                %else %if "&supplier" = "供应商B 5.X" %then %do;
+                    put @1 '药物编码(Kit No.),药物类型(Drug Code),中心编号(Site No.),批次号(Lot No.),过期日期(Expiration Date),随机数(Random No),序列号(Sequence No),药物描述(Drug Description),区组编号(Block No),区组内随机数(Block Random No.),Attribute1,Attribute2,Attribute3';
+                %end;
+                %else %do;
+                    PUT @1 "项目名称,&protocol,,,,,,,,,,";
+                    put @1 "项目代码,&studyID,,,,,,,,,,";
+                    put @1 '序号,治疗物品编号,治疗物品代码,治疗物品名称,子规格,症型';
+                %end;
+                %if "&supplier" = "供应商B 6.X" %then %do;
+                    put seq pn drugno drugsize secorder VC SN LN;
+                %end;
+                %else %if "&supplier" = "供应商B 5.X" %then %do;
+                    put drugno drugsize SN LN expdate secorder seq DD bn rand attr1 attr2 attr3;
+                %end;
+                %else %do;
+                    put seq drugno drugcds drugsize size symptons;
+                %end;
+            end;
+            else do;
+                %if "&supplier" = "供应商B 6.X" %then %do;
+                    put seq pn drugno drugsize secorder VC SN LN;
+                %end;
+                %else %if "&supplier" = "供应商B 5.X" %then %do;
+                    put drugno drugsize SN LN expdate secorder seq DD bn rand attr1 attr2 attr3;
+                %end;
+                %else %do;
+                    put seq drugno drugcds drugsize size symptons;
+                %end;
+            end;
+        %end;
+        %else %do;
+            if _n_=1 then do;
+                %if "&supplier" = "供应商A" %then %do;
+                    PUT @1 "项目名称,&protocol,,,,,,,,,,";
+                    put @1 "项目代码,&studyID,,,,,,,,,,";
+                    put @1 '序号,治疗物品编号,治疗物品代码,治疗物品名称,子规格,症型,取药顺序号';
+                %end;
+                %else %if "&supplier" = "供应商B 6.X" %then %do;
+                    put @1 '*Sequence Number,Package Number,*Kit Number,*Material Name,*Random Number,Verification Code,Site Number,Lot Number';
+                %end;
+                %else %if "&supplier" = "供应商B 5.X" %then %do;
+                    put @1 '药物编码(Kit No.),药物类型(Drug Code),中心编号(Site No.),批次号(Lot No.),过期日期(Expiration Date),随机数(Random No),序列号(Sequence No),药物描述(Drug Description),区组编号(Block No),区组内随机数(Block Random No.),Attribute1,Attribute2,Attribute3';
+                %end;
+                %else %do;
+                    PUT @1 "项目名称,&protocol,,,,,,,,,,";
+                    put @1 "项目代码,&studyID,,,,,,,,,,";
+                    put @1 '序号,治疗物品编号,治疗物品代码,治疗物品名称,子规格,症型,取药顺序号';
+                %end;
+                %if "&supplier" = "供应商B 6.X" %then %do;
+                    put seq pn drugno drugsize secorder VC SN LN;
+                %end;
+                %else %if "&supplier" = "供应商B 5.X" %then %do;
+                    put drugno drugsize SN LN expdate secorder seq DD bn rand attr1 attr2 attr3;
+                %end;
+                %else %do;
+                    put seq drugno drugcds drugsize size symptons secorder;
+                %end;
+            end;
+            else do;
+                %if "&supplier" = "供应商B 6.X" %then %do;
+                    put seq pn drugno drugsize secorder VC SN LN;
+                %end;
+                %else %if "&supplier" = "供应商B 5.X" %then %do;
+                    put drugno drugsize SN LN expdate secorder seq DD bn rand attr1 attr2 attr3;
+                %end;
+                %else %do;
+                    put seq drugno drugcds drugsize size symptons secorder;
+                %end;
+            end;
+        %end;
+    run;
+
+    %if "&supplier" = "供应商B 5.X" %then %do;
+        DATA work.druglist_temp;
+            LENGTH drugno $50 drugsize $50 SN $50 LN $50 expdate $50 secorder $50 seq $50 
+                   DD $200 bn $50 rand $50 attr1 $50 attr2 $50 attr3 $50;
+            INFILE "&_rootpath.\&Status\&studyID._Drug_List_&Status..csv" DSD DLM=',' FIRSTOBS=2;
+            INPUT drugno drugsize SN LN expdate secorder seq DD bn rand attr1 attr2 attr3;
+            LABEL
+                drugno   = "药物编码(Kit No.)"
+                drugsize = "药物类型(Drug Code)"
+                SN       = "中心编号(Site No.)"
+                LN       = "批次号(Lot No.)"
+                expdate  = "过期日期(Expiration Date)"
+                secorder = "随机数(Random No)"
+                seq      = "序列号(Sequence No)"
+                DD       = "药物描述(Drug Description)"
+                bn       = "区组编号(Block No)"
+                rand     = "区组内随机数(Block Random No.)"
+                attr1    = "Attribute1"
+                attr2    = "Attribute2"
+                attr3    = "Attribute3";
+        RUN;
+
+        ODS EXCEL FILE="&_rootpath.\&Status\&studyID._Drug_List_&Status..xlsx" OPTIONS(SHEET_NAME="KIT LIST");
+
+        PROC PRINT DATA=work.druglist_temp LABEL NOOBS;
+        RUN;
+
+        ODS EXCEL CLOSE;
+    %end;
+
+%mend m_rpe_drug;

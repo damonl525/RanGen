@@ -1,0 +1,17 @@
+{# Jinja2 Template: Macro Definitions #}
+/* ========================================================================= */
+/* SAS Randomization Code Generator - Macro Definitions */
+/* ========================================================================= */
+
+/* Subject Randomization Macros */
+{% include 'macros/m_rand.sas' %}
+{% include 'macros/m_rpt.sas.j2' %}
+{% include 'macros/m_rpe.sas.j2' %}
+
+/* Drug Randomization Macros */
+{# Note: m_rpt_drug is generic #}
+{% include 'macros/m_rpt_drug.sas.j2' %}
+
+{# Define m_rpe_drug globally using the main drug configuration #}
+{% set drug_config = study.drug_randomization_config %}
+{% include 'macros/m_rpe_drug.sas.j2' %}

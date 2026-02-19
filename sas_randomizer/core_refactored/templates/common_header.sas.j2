@@ -1,0 +1,125 @@
+/* ========================================================================= */
+/* Study: {{ study.protocol_title }} */
+/* ID: {{ study.study_id }} */
+/* Sponsor: {{ study.client }} */
+/* Generated: {{ now }} */
+/* Status: {{ study.status }} */
+/* Output Path: {{ study.output_settings.path }} */
+/* ========================================================================= */
+
+%global subjseed drugseed studyID client protocol status company;
+%let Status = {{ study.status }};
+%let studyID = {{ study.study_id }};
+%let client = {{ study.client }};
+%let company = {{ study.company }};
+%let protocol = {{ study.protocol_title }};
+%let subjseed = {{ study.subject_seed }};
+%let drugseed = {{ study.drug_seed }};
+
+%put Study ID: &studyID.;
+%put Client: &client.;
+%put Protocol: &protocol.;
+%put Status: &status.;
+%put Company: &company.;
+%put Subject Seed: &subjseed.;
+%if %symexist(drugseed) %then %do;
+    %put Drug Seed: &drugseed.;
+%end;
+
+ods escapechar='^';
+options LEFTMARGIN=2cm rightMARGIN=2cm topMARGIN=2cm bottommargin=2cm orientation=portrait nodate nonumber noquotelenmax nobyline;
+
+%macro rootpath;
+    %global _rootpath _pgmname;
+    %local _fpath;
+
+    %let _fpath=%sysfunc(getoption(sysin));
+
+    %if %length(&_fpath)=0 %then %do;
+        %let _fpath=%sysget(SAS_EXECFILEPATH);
+    %end;
+
+    %let _rootpath=%ksubstr(&_fpath., 1, %eval(%kindex(%upcase(&_fpath), %upcase(%scan(&_fpath., -1, \)))-2));
+    %let _pgmname=%scan(&_fpath., -2, .\);
+    %put &_rootpath.;
+%mend rootpath;
+
+{% if study.is_server_run %}
+    /* 服务器运行模式：手动设置路径 */
+    %global _rootpath;
+    %let _rootpath = {{ study.server_path }};
+    %put NOTE: 正在服务器运行模式下执行，_rootpath = &_rootpath.;
+{% else %}
+    /* 本地运行模式：自动识别路径 */
+    %rootpath;
+{% endif %}
+
+/* 创建输出文件夹（如果不存在） */
+%macro create_output_folder;
+    %if "%upcase(&Status)" = "DRAFT" %then %do;
+        %let output_folder = &_rootpath.\draft;
+    %end;
+    %else %if "%upcase(&Status)" = "FINAL" %then %do;
+        %let output_folder = &_rootpath.\final;
+    %end;
+    %else %do;
+        %let output_folder = &_rootpath.;
+    %end;
+
+    %if "%upcase(&Status)" = "DRAFT" or "%upcase(&Status)" = "FINAL" %then %do;
+        %if %sysfunc(fileexist(&output_folder)) = 0 %then %do;
+            %let rc = %sysfunc(dcreate(%scan(&output_folder, -1, \), &_rootpath.));
+            %if "&rc" ne "" %then %do;
+                %put NOTE: 成功创建输出文件夹 &output_folder;
+            %end;
+            %else %do;
+                %put ERROR: 无法创建输出文件夹 &output_folder;
+            %end;
+        %end;
+        %else %do;
+            %put NOTE: 输出文件夹已存在 &output_folder;
+        %end;
+    %end;
+
+    /* 设置输出数据库 */
+    %if "%upcase(&Status)" = "DRAFT" %then %do;
+        Libname Output "&_rootpath.\draft";
+    %end;
+    %else %if "%upcase(&Status)" = "FINAL" %then %do;
+        Libname Output "&_rootpath.\final";
+    %end;
+    %else %do;
+        Libname Output "&_rootpath.";
+    %end;
+%mend create_output_folder;
+%create_output_folder;
+
+option validvarname=upcase;
+
+/* Format Definitions */
+proc format;
+    /* Treatment Arms */
+    value $armcd
+    {% for arm in study.treatment_arms %}
+        '{{ arm.armcd }}' = '{{ arm.name }}'
+    {% endfor %}
+    ;
+    
+    /* Stratification Factors */
+    {% for factor in study.stratification_factors %}
+        value ${{ factor }}
+        {% for level in study.strata_levels[factor] %}
+            '{{ level }}' = '{{ level }}'
+        {% endfor %}
+        ;
+    {% endfor %}
+
+    /* Drug Arms (if available) */
+    {% if study.cohorts[0].config.enabled %}
+        value $drugcd
+        {% for arm in study.cohorts[0].config.drug_arms %}
+            '{{ arm.code }}' = '{{ arm.name }}'
+        {% endfor %}
+        ;
+    {% endif %}
+run;

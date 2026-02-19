@@ -1,0 +1,201 @@
+{# Jinja2 Template for m_rpe macro #}
+/****************************************************************
+* MACRO: m_rpe
+* Purpose: Export randomization list to CSV.
+****************************************************************/
+%macro m_rpe(inds=, supplier={{ study.output_settings.supplier }});
+
+    /* 排序：使用统一排序逻辑 */
+    proc sort data=&inds. out=_sorted_data;
+        by protocol_order protocol StrataN Strata catord category SubjNo;
+    run;
+                        
+    data dsexport;
+        retain seq protocol subjno strata bn rand site group arm randcount Subsnumber catord category ;
+        set _sorted_data;
+
+        /* 设置其他变量 */
+        site='';
+        randcount='';
+        group = armcd;  /* 分组代码使用 armcd */
+        
+        /* 重新生成连续序号，从1开始到最后，不分子方案 */
+        seq = _n_;
+        length CO Type PRN $20.;
+        CO='All';*供应商B6.X Cohort OID;
+        Type="1";*供应商B6.X Type, 原始列表用1表示，镜像/备用列表用2表示;
+        PRN="";*供应商B6.X Parent Randomization Number, 父随机号（替换时用）;
+        if category="替换号" then do;
+            Type="2";
+            PRN=strip(compress(subjno,"Ss"));
+        end;
+
+        length RR1 RR2 RE Des $100.;
+        RR1="";*供应商B5.X 替换编号1(Replace Random No. 1);
+        RR2="";*供应商B5.X 替换编号2(Replace Random No. 2);
+        RE="";*供应商B5.X 标记(Remarks);
+        Des="";*供应商B5.X 描述(Description);
+
+        %if "&supplier" = "供应商B Lite" %then %do;
+            if Type="1" then Type="0";
+            if Type="2" then Type="1";
+        %end;
+
+        label 
+            seq="序号"
+            protocol="子方案"
+            SubjNo="随机号"
+            Strata="分层因素"
+            bn ="区组"
+            Rand="区组编号"
+            site="中心编号"
+            group="分组代码"
+            Arm="分组名称"
+            randcount="随机次数"
+            Subsnumber="替换序号"
+            category="号码类别"
+        ;
+        
+        keep seq protocol_order protocol subjno strata bn rand site group arm randcount Subsnumber category CO Type PRN
+            RR1 RR2 RE Des;
+    run;
+
+    %if "&supplier" = "供应商B 5.X" %then %do;
+
+        proc sql noprint;
+            select count(*) into:secflag from dsexport where Type ne "1";
+        quit;
+
+        %if &secflag.>0 %then %do;
+            
+            proc sql noprint;
+               create table dsexport_new as
+               select t1.*, t2.RR1 from
+                  (select strip(PRN) as subjno, strip(subjno) as RR1 from dsexport where Type="2") as t2
+               left join
+                  (select * from dsexport(drop=rr1) where Type="1") as t1
+               on
+                  t1.subjno = t2.subjno; 
+            quit;
+
+            proc datasets lib=work nolist nodetails;
+               delete dsexport; 
+               change dsexport_new = dsexport;
+            quit;
+            run;
+        %end;
+    %end;
+
+    FILENAME new disk %if %length(&Status) %then %do; 
+                        "&_rootpath.\&Status\&studyID._Rand_List_&Status..csv" 
+                      %end;
+                      %else %do; 
+                        "&_rootpath.\Final Delivery\&studyID._Rand_List_&Status..csv" 
+                      %end; ENCODING= "UTF-8";
+    data _null_;
+     set dsexport;
+      FILE new DSD DLM=',';
+      if _n_=1 then do;
+          %if "&supplier" = "供应商A" %then %do;
+              PUT @1 "项目名称,&protocol,,,,,,,,,,";
+              put @1 "项目代码,&studyID,,,,,,,,,,";
+              put @1 '序号,子方案,随机号,分层因素,区组,区组编号,中心编号,分组代码,分组名称,随机次数,替换序号,号码类别';
+          %end;
+          %else %if "&supplier" = "供应商B 6.X" %then %do;
+              put @1 '*Sequence Number,Strata Code,*Block Number,*Arm Code,*Rand Number in Block,*Cohort OID,*Randomization Number,*Type,Parent Randomization Number';
+          %end;
+          %else %if "&supplier" = "供应商B 5.X" %then %do;
+              put @1 '分层因子代码(Strata Coding),区组编号(Block No.),治疗分组(Treatment Arm),区组内随机数(Block Random No.),随机编号(Random No.),替换编号1(Replace Random No. 1),替换编号2(Replace Random No. 2),标记(Remarks),描述(Description)';
+          %end;
+          %else %if "&supplier" = "供应商B Lite" %then %do;
+              put @1 '*分层 Strata,*区组编号 Block No.,*分组 Treatment Arm,*区组内随机数 Rand in Block,*随机编号 Random No.,父随机编号Parent Random NO.,类型 Type';
+          %end;
+          %else %do;
+              PUT @1 "项目名称,&protocol,,,,,,,,,,";
+              put @1 "项目代码,&studyID,,,,,,,,,,";
+              put @1 '序号,子方案,随机号,分层因素,区组,区组编号,中心编号,分组代码,分组名称,随机次数,替换序号,号码类别';
+          %end;
+          %if "&supplier" = "供应商B 6.X" %then %do;
+              put seq strata bn group rand CO subjno Type PRN;
+          %end;
+          %else %if "&supplier" = "供应商B 5.X" %then %do;
+              put strata bn group rand subjno RR1 RR2 RE Des;
+          %end;
+          %else %if "&supplier" = "供应商B Lite" %then %do;
+              put strata bn group rand subjno PRN Type;
+          %end;
+          %else %do;
+              put seq protocol subjno strata bn rand site group arm randcount Subsnumber category;
+          %end;
+      end;
+      else do;
+      %if "&supplier" = "供应商B 6.X" %then %do;
+          put seq strata bn group rand CO subjno Type PRN;
+      %end;
+      %else %if "&supplier" = "供应商B 5.X" %then %do;
+          put strata bn group rand subjno RR1 RR2 RE Des;
+      %end;
+      %else %if "&supplier" = "供应商B Lite" %then %do;
+          put strata bn group rand subjno PRN Type;
+      %end;
+      %else %do;
+          put seq protocol subjno strata bn rand site group arm randcount Subsnumber category;
+      %end;
+      end;
+    run;
+
+    %if "&supplier" = "供应商B 5.X" %then %do;
+        /* --- 第一步：使用 DATA 步和 INFILE 语句读取 CSV 数据 --- */
+        DATA work.temp_from_csv;
+            /* 为所有可能读入的字符变量预设一个足够长的长度，防止截断 */
+            LENGTH 
+                StrataCoding $100
+                BlockNo $50
+                TreatmentArm $100
+                BlockRandomNo $50
+                RandomNo $50
+                ReplaceRandomNo1 $50
+                ReplaceRandomNo2 $50
+                Remarks $200
+                Description $200;
+        
+            /* INFILE 语句指向您的 CSV 文件 */
+            INFILE "&_rootpath.\&Status\&studyID._Rand_List_&Status..csv"  DSD DLM=',' FIRSTOBS=2;
+
+            /* INPUT 语句 */
+            INPUT 
+                StrataCoding
+                BlockNo
+                TreatmentArm
+                BlockRandomNo
+                RandomNo
+                ReplaceRandomNo1
+                ReplaceRandomNo2
+                Remarks
+                Description;
+            LABEL
+                StrataCoding     = "分层因子代码(Strata Coding)"
+                BlockNo          = "区组编号(Block No.)"
+                TreatmentArm     = "治疗分组(Treatment Arm)"
+                BlockRandomNo    = "区组内随机数(Block Random No.)"
+                RandomNo         = "随机编号(Random No.)"
+                ReplaceRandomNo1 = "替换编号1(Replace Random No. 1)"
+                ReplaceRandomNo2 = "替换编号2(Replace Random No. 2)"
+                Remarks          = "标记(Remarks)"
+                Description      = "描述(Description)"
+            ;
+        RUN;
+
+
+        /* --- 第二步：ODS EXCEL 语句开始一个“输出捕获”会话，指向您的目标文件 */
+        ODS EXCEL FILE="&_rootpath.\&Status\&studyID._Rand_List_&Status..xlsx"  OPTIONS(SHEET_NAME="Randomization");
+
+        /* 使用 PROC PRINT 打印我们带有标签的数据集 */
+        PROC PRINT DATA=work.temp_from_csv LABEL NOOBS;
+        RUN;
+
+        /* ODS EXCEL CLOSE; 关闭“输出捕获”，完成文件写入 */
+        ODS EXCEL CLOSE;
+    %end;
+
+%mend m_rpe;
