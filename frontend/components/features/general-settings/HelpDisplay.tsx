@@ -59,7 +59,7 @@ export function HelpDisplay({ open, onOpenChange }: { open: boolean; onOpenChang
                         </li>
                         <li>
                             <b>Q: 支持哪些供应商的 IVRS 格式？</b><br />
-                            A: 目前支持通用的标准格式，以及部分定制格式（如 BioKnow, Shanhu）。您可以在 "Templates" 页面查看和下载配置模板。
+                            A: 目前支持通用的标准格式，以及部分定制格式。您可以在 "Templates" 页面查看和下载配置模板。
                         </li>
                     </ul>
                 </div>
