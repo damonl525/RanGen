@@ -1,6 +1,6 @@
 # SAS Randomization Code Generator (Web UI Edition)
 
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/your-repo)
+[![Version](https://img.shields.io/badge/version-2.1-blue.svg)](https://github.com/your-repo)
 [![Status](https://img.shields.io/badge/status-Stable-green.svg)]()
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
@@ -109,6 +109,7 @@ npm run dev
 
 ## 📜 Version History
 
+*   **v2.1 (2026-05-06)**: Fix standalone mode backend process lingering on browser close.
 *   **v2.0 (2026-02-03)**: Web Migration, i18n, Visual Wizard.
 *   **v1.3 (2025-10-10)**: Added XLSX output support for Supplier B 5.X.
 *   **v1.2 (2025-09-28)**: Fixed path gen bugs; optimized RTF paging; Enhanced CSV DSD options.

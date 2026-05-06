@@ -130,9 +130,17 @@ async def get_version_info():
     Get application version and change history.
     """
     return JSONResponse({
-        "version": "2.0",
-        "release_date": "2026-02-03",
+        "version": "2.1",
+        "release_date": "2026-05-06",
         "history": [
+            {
+                "version": "2.1",
+                "date": "2026-05-06",
+                "changes": [
+                    "修复独立部署模式：关闭浏览器标签时自动终止后端进程，解决进程残留问题",
+                    "仅在standalone模式（端口8000）下触发shutdown，开发模式不受影响"
+                ]
+            },
             {
                 "version": "2.0",
                 "date": "2026-02-03",

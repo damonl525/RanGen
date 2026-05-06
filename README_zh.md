@@ -1,6 +1,6 @@
 # SAS 随机化代码生成器 (Web UI 版)
 
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/your-repo)
+[![Version](https://img.shields.io/badge/version-2.1-blue.svg)](https://github.com/your-repo)
 [![Status](https://img.shields.io/badge/status-Stable-green.svg)]()
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
@@ -109,6 +109,7 @@ npm run dev
 
 ## 📜 版本历史
 
+*   **v2.1 (2026-05-06)**: 修复独立部署模式下关闭浏览器后后台进程残留的问题。
 *   **v2.0 (2026-02-03)**: Web 版迁移, 国际化支持, 可视化向导。
 *   **v1.3 (2025-10-10)**: 针对供应商B 5.X 更新，支持生成 xlsx 格式盲底。
 *   **v1.2 (2025-09-28)**: 修复路径生成 Bug；优化 RTF 分页；增强 CSV DSD 选项。
