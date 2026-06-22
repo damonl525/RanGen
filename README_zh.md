@@ -1,6 +1,6 @@
 # SAS 随机化代码生成器 (Web UI 版)
 
-[![Version](https://img.shields.io/badge/version-2.1-blue.svg)](https://github.com/your-repo)
+[![Version](https://img.shields.io/badge/version-2.2-blue.svg)](https://github.com/damonl525/RanGen)
 [![Status](https://img.shields.io/badge/status-Stable-green.svg)]()
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
@@ -109,6 +109,7 @@ npm run dev
 
 ## 📜 版本历史
 
+*   **v2.2 (2026-06-22)**: 修复 RTF 样式缺失、药物方法标签误判、文件名后缀不一致、RANDOM 种子失效。
 *   **v2.1 (2026-05-06)**: 修复独立部署模式下关闭浏览器后后台进程残留的问题。
 *   **v2.0 (2026-02-03)**: Web 版迁移, 国际化支持, 可视化向导。
 *   **v1.3 (2025-10-10)**: 针对供应商B 5.X 更新，支持生成 xlsx 格式盲底。
