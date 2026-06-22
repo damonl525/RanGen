@@ -1,0 +1,63 @@
+{# Jinja2 Template: RTF Output Style Definition #}
+{# Defines the RandStyle used by the ODS RTF statements in m_rpt (subject list) #}
+{# and m_rpt_drug (drug list). Without this, style=randStyle fails at runtime. #}
+{# Source: faithfully ported from the validated reference templates.sas.        #}
+/* ========================================================================= */
+/* RTF Output Style Definition - RandStyle                                   */
+/* Defines table/fonts/margins for ODS RTF (style=randStyle).                */
+/* Must run before m_rpt / m_rpt_drug invoke their ods rtf statements.        */
+/* ========================================================================= */
+
+%macro templates;
+    proc template;
+        define style RandStyle;
+            parent=Styles.statistical;
+              replace fonts /
+           'titlefont2'=("SimSun",10pt)
+           'titlefont'=("SimSun",10pt)
+           'Strongfont'=("SimSun",10pt)
+           'EmphasisFont'=("SimSun",10pt)
+           'FixedEmphasisFont'=("SimSun",2)
+           'FixedStrongFont'=("SimSun",2)
+           'FixedHeadingFont'=("SimSun",2)
+           'BatchFixedFont'=("SimSun",2)
+           'FixedFont'=("SimSun",2)
+           'headingEmphasisFont'=("SimSun",10pt)
+           'headingFont'=("SimSun",10pt)
+           'docFont'=("SimSun",10pt)
+           'footFont'=("SimSun",10pt) ;
+
+        style header from table /rules=groups
+                                 frame=above
+                                 frameborder=on
+                                 frameborderwidth=0.25
+                                 font_weight=bold
+                                 font_size=10pt
+
+                                 cellspacing=.25
+                                 cellpadding=1.0;
+        style table from table /rules=groups
+                                 frame=above
+                                 frameborder=on
+                                 frameborderwidth=0.25
+                                 font_weight=light
+                                 cellspacing=0
+                                 cellpadding=0;
+        style systemtitle from systemtitle / asis=on protectspecialchars=off;
+        style systemfooter from systemfooter / asis=on protectspecialchars=off;
+        replace headersAndFooters from cell/
+            font=fonts('HeadingFont')
+            foreground=black
+            background=white;
+         replace Body from Document
+                    "Controls the Body file. " /
+                bottommargin = 0.99in
+                topmargin    = 0.99in
+                rightmargin  = 0.99in
+                leftmargin   = 0.99in;
+        end;
+    run;
+
+%mend templates;
+
+%templates;

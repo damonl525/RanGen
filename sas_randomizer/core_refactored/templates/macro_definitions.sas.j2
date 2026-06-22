@@ -3,6 +3,9 @@
 /* SAS Randomization Code Generator - Macro Definitions */
 /* ========================================================================= */
 
+/* RTF Output Style (RandStyle) - must be defined before m_rpt / m_rpt_drug run */
+{% include 'macros/templates.sas.j2' %}
+
 /* Subject Randomization Macros */
 {% include 'macros/m_rand.sas' %}
 {% include 'macros/m_rpt.sas.j2' %}
