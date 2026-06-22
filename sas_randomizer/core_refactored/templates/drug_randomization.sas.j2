@@ -118,7 +118,16 @@ run;
 /* Requires a generic m_rpt_drug that can handle the combined dataset */
 {% set method_parts_drug = [] %}
 {% if study.drug_randomization_config and study.drug_randomization_config.stratification_factors %}
-    {% do method_parts_drug.append('分层') %}
+    {# 仅当存在"真正的(非批次/供应)分层因子"才标记分层；批次是供应维度，不计入随机化分层 #}
+    {% set _drug_has_real_strata = namespace(flag=false) %}
+    {% for _f in study.drug_randomization_config.stratification_factors %}
+        {% if _f.batch_settings is none %}
+            {% set _drug_has_real_strata.flag = true %}
+        {% endif %}
+    {% endfor %}
+    {% if _drug_has_real_strata.flag %}
+        {% do method_parts_drug.append('分层') %}
+    {% endif %}
 {% endif %}
 {% do method_parts_drug.append('区组随机') %}
 {% set combined_method_drug = method_parts_drug | join('') %}
