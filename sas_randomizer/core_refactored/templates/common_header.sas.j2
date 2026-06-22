@@ -17,7 +17,21 @@
 %let company = {{ study.company }};
 %let protocol = {{ study.protocol_title }};
 %let subjseed = {{ study.subject_seed }};
+{% if study.subject_seed|string|trim|upper == 'RANDOM' %}
+/* 种子为 RANDOM：运行时用系统时钟生成随机整数种子(实际种子会写入输出数据集 Seed 列，可复现) */
+data _null_;
+    call streaminit(0);
+    call symputx('subjseed', ceil(1000000*rand('uniform')));
+run;
+{% endif %}
 %let drugseed = {{ study.drug_seed }};
+{% if study.drug_seed|string|trim|upper == 'RANDOM' %}
+/* 种子为 RANDOM：运行时用系统时钟生成随机整数种子(实际种子会写入输出数据集 Seed 列，可复现) */
+data _null_;
+    call streaminit(0);
+    call symputx('drugseed', ceil(1000000*rand('uniform')));
+run;
+{% endif %}
 
 %put Study ID: &studyID.;
 %put Client: &client.;

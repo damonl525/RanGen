@@ -19,11 +19,12 @@ class VersionInfo:
         {
             "version": "v2.2",
             "date": "2026-06-22",
-            "description": "修复RTF样式缺失、药物方法标签误判、输出文件名状态后缀不一致",
+            "description": "修复RTF样式缺失、药物方法标签误判、输出文件名状态后缀不一致、RANDOM种子失效",
             "details": [
                 "1.RTF样式缺失：补充ODS RTF所需的RandStyle样式定义(proc template)，此前m_rpt与m_rpt_drug引用的style=randStyle从未被定义，导致RTF盲底输出失败；新增macros/templates.sas.j2模板，在宏定义阶段统一注入样式定义",
                 "2.药物方法标签误判：批次(供应因子)不再被当作随机化分层因子，仅当存在真正的非批次分层因子时才标记\"分层\"，修正批次配置被误标为\"分层区组随机\"的问题",
-                "3.输出文件名状态后缀不一致：新增全局_sfx宏变量(Draft状态加_Status后缀、Final及空状态不加)，统一受试者/药物RTF、CSV、XLSX共8处文件名引用，修复此前受试者RTF无后缀及Draft/Final混加后缀的不一致，并保证供应商B 5.X的FILENAME/INFILE/ODS EXCEL读回链路一致"
+                "3.输出文件名状态后缀不一致：新增全局_sfx宏变量(Draft状态加_Status后缀、Final及空状态不加)，统一受试者/药物RTF、CSV、XLSX共8处文件名引用，修复此前受试者RTF无后缀及Draft/Final混加后缀的不一致，并保证供应商B 5.X的FILENAME/INFILE/ODS EXCEL读回链路一致",
+                "4.RANDOM种子支持：受试者/药物种子填RANDOM时，运行时用streaminit(0)生成随机整数种子并写入输出数据集Seed列(可复现)；此前UI承诺RANDOM可用，但生成的SAS以字面量RANDOM传入PROC PLAN/STREAMINIT导致执行报错。仅在种子为RANDOM时才注入生成代码，固定数字种子不受影响"
             ]
         },
         {
