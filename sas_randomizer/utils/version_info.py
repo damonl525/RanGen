@@ -12,17 +12,32 @@ class VersionInfo:
     """版本信息管理类"""
     
     # 当前版本
-    CURRENT_VERSION = "v2.2"
+    CURRENT_VERSION = "v2.3"
 
     # 更新历史记录
     UPDATE_HISTORY = [
+        {
+            "version": "v2.3",
+            "date": "2026-06-23",
+            "description": "鲁棒性与用户体验修复：异常处理规范化、axios超时、版本号统一、日志落盘、ErrorBoundary、端口锁、Electron死路径清理、测试基建",
+            "details": [
+                "1.异常处理规范化(P0-1)：业务校验错误(ValueError)现正确返回400+友好中文提示，系统错误返回500+通用文案，不再泄露内部异常文本；sas_service透传ValueError、RuntimeError仅用于非预期异常",
+                "2.axios超时保护(P0-2)：共享axios实例统一60秒超时，响应拦截器自动提取error.response.data.detail；消除后端卡死时前端永久loading导致按钮锁死的问题",
+                "3.版本号统一(P1-1)：消除三处版本号分裂——endpoints.py/app/version现从version_info.py动态读取，main.py FastAPI元数据同步引用，app内关于页面正确显示v2.3完整更新历史",
+                "4.standalone日志落盘(P1-2)：冻结模式下日志写入%LOCALAPPDATA%/RanGen/rangen.log(带RotatingFileHandler 1MB×3)，替换原NullWriter导致的无日志可查问题；dev模式保持控制台输出",
+                "5.前端ErrorBoundary(P1-6)：全局ErrorBoundary包裹，渲染异常时显示友好错误页+重新加载按钮；templates页面useTemplates增加isError分支+重试按钮",
+                "6.Electron死路径清理(P1-5)：移除package.json中electron/main.js引用、electron:dev/dist/pack-app脚本、electron-builder build配置、及5个未使用的electron相关devDependencies",
+                "7.端口锁与启动检测(P1-3)：启动时检测端口8000占用+PID文件标记，关闭时清理PID文件；防止多实例残留叠加",
+                "8.测试基础设施(P1-4)：新增tests/目录，覆盖generate端点契约测试(200/400路径)、SASRandomizationGenerator校验分支单元测试、固定输入快照确定性测试"
+            ]
+        },
         {
             "version": "v2.2",
             "date": "2026-06-22",
             "description": "修复RTF样式缺失、药物方法标签误判、输出文件名状态后缀不一致、RANDOM种子失效",
             "details": [
                 "1.RTF样式缺失：补充ODS RTF所需的RandStyle样式定义(proc template)，此前m_rpt与m_rpt_drug引用的style=randStyle从未被定义，导致RTF盲底输出失败；新增macros/templates.sas.j2模板，在宏定义阶段统一注入样式定义",
-                "2.药物方法标签误判：批次(供应因子)不再被当作随机化分层因子，仅当存在真正的非批次分层因子时才标记\"分层\"，修正批次配置被误标为\"分层区组随机\"的问题",
+                "2.药物方法标签误判：批次(供应因子)不再被当作随机化分层因子，仅当存在真正的非批次分层因子时才标记“分层”，修正批次配置被误标为“分层区组随机”的问题",
                 "3.输出文件名状态后缀不一致：新增全局_sfx宏变量(Draft状态加_Status后缀、Final及空状态不加)，统一受试者/药物RTF、CSV、XLSX共8处文件名引用，修复此前受试者RTF无后缀及Draft/Final混加后缀的不一致，并保证供应商B 5.X的FILENAME/INFILE/ODS EXCEL读回链路一致",
                 "4.RANDOM种子支持：受试者/药物种子填RANDOM时，运行时用streaminit(0)生成随机整数种子并写入输出数据集Seed列(可复现)；此前UI承诺RANDOM可用，但生成的SAS以字面量RANDOM传入PROC PLAN/STREAMINIT导致执行报错。仅在种子为RANDOM时才注入生成代码，固定数字种子不受影响"
             ]

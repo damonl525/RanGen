@@ -15,16 +15,17 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Only modify path in development mode
 if not getattr(sys, 'frozen', False):
-    project_root = os.path.abspath(os.path.join(current_dir, "../../.."))
+    project_root = os.path.abspath(os.path.join(current_dir, "../.."))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
+from sas_randomizer.utils.version_info import VersionInfo
 from .api.endpoints import router as api_router
 
 app = FastAPI(
     title="RanGen API",
     description="Backend API for SAS Randomization Generator",
-    version="1.0.0"
+    version=VersionInfo.get_current_version()
 )
 
 # CORS Configuration

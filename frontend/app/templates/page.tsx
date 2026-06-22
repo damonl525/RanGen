@@ -1,10 +1,10 @@
 "use client";
 
-import { useTemplates } from "@/lib/api";
+import { useTemplates, API_BASE_URL } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, FileSpreadsheet, Download, Loader2, Eye } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, Download, Loader2, Eye, AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -12,7 +12,8 @@ import * as XLSX from "xlsx";
 import axios from "axios";
 
 export default function TemplatesPage() {
-    const { data: templates, isLoading } = useTemplates();
+    const { data: templates, isLoading, isError, error, refetch } = useTemplates();
+
     const [previewTemplate, setPreviewTemplate] = useState<{ name: string, path: string } | null>(null);
 
     return (
@@ -33,6 +34,16 @@ export default function TemplatesPage() {
             {isLoading ? (
                 <div className="flex justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+            ) : isError ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <AlertTriangle className="h-10 w-10 text-red-500 mb-4" />
+                    <p className="text-red-600 dark:text-red-400 font-medium mb-2">Failed to load templates</p>
+                    <p className="text-sm text-muted-foreground mb-4">{(error as Error)?.message || "Unknown error"}</p>
+                    <Button variant="outline" onClick={() => refetch()} className="gap-2">
+                        <RefreshCw className="h-4 w-4" />
+                        Retry
+                    </Button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -98,10 +109,13 @@ function TemplatePreviewDialog({ open, template, onOpenChange }: {
         setError(null);
         try {
             // Add timestamp to prevent caching of the file content
-            const url = `http://127.0.0.1:8000/api/v1/templates/${encodeURIComponent(fileName)}?t=${new Date().getTime()}`;
-            const response = await axios.get(url, { responseType: 'arraybuffer' });
+            const url = `${API_BASE_URL}/templates/${encodeURIComponent(fileName)}?t=${new Date().getTime()}`;
+            const response = await axios.get(url, {
+                responseType: "arraybuffer",
+                timeout: 30000,
+            });
             const data = new Uint8Array(response.data);
-            const workbook = XLSX.read(data, { type: 'array' });
+            const workbook = XLSX.read(data, { type: "array" });
 
             if (workbook.SheetNames.length === 0) {
                 setError("No sheets found in this Excel file.");
@@ -112,15 +126,18 @@ function TemplatePreviewDialog({ open, template, onOpenChange }: {
             const worksheet = workbook.Sheets[firstSheetName];
 
             // Limit preview to first 50 rows to avoid performance issues with large empty ranges
-            const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:A1");
+            const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
             range.e.r = Math.min(range.e.r, 50); // Cap at 50 rows
-            worksheet['!ref'] = XLSX.utils.encode_range(range);
+            worksheet["!ref"] = XLSX.utils.encode_range(range);
 
             const htmlStr = XLSX.utils.sheet_to_html(worksheet, { id: "excel-table", editable: false });
             setHtml(htmlStr);
         } catch (err) {
             console.error("Failed to load Excel preview:", err);
-            setError("Failed to load preview. The file might be corrupted or incompatible.");
+            const msg = axios.isAxiosError(err) && err.response?.data?.detail
+                ? err.response.data.detail
+                : "Failed to load preview. The file might be corrupted or incompatible.";
+            setError(msg);
         } finally {
             setLoading(false);
         }
@@ -128,8 +145,8 @@ function TemplatePreviewDialog({ open, template, onOpenChange }: {
 
     const handleDownload = () => {
         if (!template) return;
-        const downloadUrl = `http://127.0.0.1:8000/api/v1/templates/${encodeURIComponent(template.name)}`;
-        window.open(downloadUrl, '_blank');
+        const downloadUrl = `${API_BASE_URL}/templates/${encodeURIComponent(template.name)}`;
+        window.open(downloadUrl, "_blank");
         toast.success("Download started");
     };
 

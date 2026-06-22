@@ -27,6 +27,9 @@ class SASService:
             generator = SASRandomizationGenerator(**data)
             code = generator.generate_sas_code()
             return code
+        except ValueError:
+            # Business validation errors — pass through to endpoints for 400 response
+            raise
         except Exception as e:
-            logging.error(f"Error generating SAS code: {e}")
-            raise RuntimeError(f"SAS Code Generation Failed: {str(e)}") from e
+            logging.error(f"Unexpected error generating SAS code: {e}", exc_info=True)
+            raise RuntimeError("SAS Code Generation Failed") from e

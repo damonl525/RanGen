@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 import { Providers } from "@/components/providers";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function RootLayout({
   children,
@@ -21,14 +22,16 @@ export default function RootLayout({
         className={`${outfit.variable} ${manrope.variable} font-sans antialiased bg-background text-foreground min-h-screen`}
       >
         <Providers>
-          <div className="relative flex min-h-screen flex-col">
-            {/* Background Grid Pattern for Technical Feel */}
-            <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
+          <ErrorBoundary>
+            <div className="relative flex min-h-screen flex-col">
+              {/* Background Grid Pattern for Technical Feel */}
+              <div className="absolute inset-0 -z-10 h-full w-full bg-background bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px]"></div>
 
-            <main className="flex-1">
-              {children}
-            </main>
-          </div>
+              <main className="flex-1">
+                {children}
+              </main>
+            </div>
+          </ErrorBoundary>
           <Toaster position="top-right" />
         </Providers>
       </body>
