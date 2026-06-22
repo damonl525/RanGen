@@ -139,7 +139,7 @@
         proc sort;by seq;
     run;
 
-    FILENAME new disk "&_rootpath.\\&Status\\&studyID._Drug_List_&Status..csv" ENCODING= "UTF-8";
+    FILENAME new disk "&_rootpath.\\&Status\\&studyID._Drug_List&_sfx..csv" ENCODING= "UTF-8";
     data _null_;
         set dsexport;
         FILE new DSD DLM=',';
@@ -229,7 +229,7 @@
         DATA work.druglist_temp;
             LENGTH drugno $50 drugsize $50 SN $50 LN $50 expdate $50 secorder $50 seq $50 
                    DD $200 bn $50 rand $50 attr1 $50 attr2 $50 attr3 $50;
-            INFILE "&_rootpath.\&Status\&studyID._Drug_List_&Status..csv" DSD DLM=',' FIRSTOBS=2;
+            INFILE "&_rootpath.\&Status\&studyID._Drug_List&_sfx..csv" DSD DLM=',' FIRSTOBS=2;
             INPUT drugno drugsize SN LN expdate secorder seq DD bn rand attr1 attr2 attr3;
             LABEL
                 drugno   = "药物编码(Kit No.)"
@@ -247,7 +247,7 @@
                 attr3    = "Attribute3";
         RUN;
 
-        ODS EXCEL FILE="&_rootpath.\&Status\&studyID._Drug_List_&Status..xlsx" OPTIONS(SHEET_NAME="KIT LIST");
+        ODS EXCEL FILE="&_rootpath.\&Status\&studyID._Drug_List&_sfx..xlsx" OPTIONS(SHEET_NAME="KIT LIST");
 
         PROC PRINT DATA=work.druglist_temp LABEL NOOBS;
         RUN;

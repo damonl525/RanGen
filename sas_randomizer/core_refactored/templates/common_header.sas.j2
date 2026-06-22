@@ -9,6 +9,9 @@
 
 %global subjseed drugseed studyID client protocol status company;
 %let Status = {{ study.status }};
+%global _sfx;
+%if %length(&Status) > 0 and %upcase(&Status) ne FINAL %then %let _sfx = _&Status.;
+%else %let _sfx = ;
 %let studyID = {{ study.study_id }};
 %let client = {{ study.client }};
 %let company = {{ study.company }};

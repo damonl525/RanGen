@@ -87,10 +87,10 @@
     %end;
 
     FILENAME new disk %if %length(&Status) %then %do; 
-                        "&_rootpath.\&Status\&studyID._Rand_List_&Status..csv" 
+                        "&_rootpath.\&Status\&studyID._Rand_List&_sfx..csv" 
                       %end;
                       %else %do; 
-                        "&_rootpath.\Final Delivery\&studyID._Rand_List_&Status..csv" 
+                        "&_rootpath.\Final Delivery\&studyID._Rand_List&_sfx..csv" 
                       %end; ENCODING= "UTF-8";
     data _null_;
      set dsexport;
@@ -160,7 +160,7 @@
                 Description $200;
         
             /* INFILE 语句指向您的 CSV 文件 */
-            INFILE "&_rootpath.\&Status\&studyID._Rand_List_&Status..csv"  DSD DLM=',' FIRSTOBS=2;
+            INFILE "&_rootpath.\&Status\&studyID._Rand_List&_sfx..csv"  DSD DLM=',' FIRSTOBS=2;
 
             /* INPUT 语句 */
             INPUT 
@@ -188,7 +188,7 @@
 
 
         /* --- 第二步：ODS EXCEL 语句开始一个“输出捕获”会话，指向您的目标文件 */
-        ODS EXCEL FILE="&_rootpath.\&Status\&studyID._Rand_List_&Status..xlsx"  OPTIONS(SHEET_NAME="Randomization");
+        ODS EXCEL FILE="&_rootpath.\&Status\&studyID._Rand_List&_sfx..xlsx"  OPTIONS(SHEET_NAME="Randomization");
 
         /* 使用 PROC PRINT 打印我们带有标签的数据集 */
         PROC PRINT DATA=work.temp_from_csv LABEL NOOBS;

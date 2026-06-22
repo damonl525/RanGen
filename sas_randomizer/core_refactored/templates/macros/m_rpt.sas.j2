@@ -41,10 +41,10 @@
 
     ods listing close;
     %if %length(&Status) %then %do; 
-      ods rtf file="&_rootpath.\&Status\&studyID Rand List.rtf" style=randStyle bodytitle;
+      ods rtf file="&_rootpath.\&Status\&studyID Rand List&_sfx..rtf" style=randStyle bodytitle;
     %end;
     %else %do; 
-      ods rtf file="&_rootpath.\Final Delivery\&studyID Rand List.rtf" style=randStyle bodytitle;
+      ods rtf file="&_rootpath.\Final Delivery\&studyID Rand List&_sfx..rtf" style=randStyle bodytitle;
     %end;
 
     Title "申办单位：&client";

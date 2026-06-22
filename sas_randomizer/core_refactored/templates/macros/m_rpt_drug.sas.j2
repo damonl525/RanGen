@@ -132,7 +132,7 @@
     %end;
     
     ods listing close;
-    ods rtf file="&_rootpath.\&Status\&studyID._Drug_List_&Status..rtf" style=randStyle bodytitle;
+    ods rtf file="&_rootpath.\&Status\&studyID._Drug_List&_sfx..rtf" style=randStyle bodytitle;
     
     %let ntitle=4;
     Title "申办单位：&client";
