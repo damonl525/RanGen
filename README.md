@@ -1,6 +1,6 @@
 # SAS Randomization Code Generator (Web UI Edition)
 
-[![Version](https://img.shields.io/badge/version-2.2-blue.svg)](https://github.com/damonl525/RanGen)
+[![Version](https://img.shields.io/badge/version-2.3-blue.svg)](https://github.com/damonl525/RanGen)
 [![Status](https://img.shields.io/badge/status-Stable-green.svg)]()
 ![Next.js](https://img.shields.io/badge/Frontend-Next.js_15-black)
 ![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
@@ -109,6 +109,7 @@ npm run dev
 
 ## 📜 Version History
 
+*   **v2.3 (2026-06-23)**: Robustness & UX hardening — normalized exception handling and HTTP status codes, axios request timeout, unified version source, standalone logging to file, global error boundary, single-instance port lock, removed dead Electron paths, and added a 25-test suite.
 *   **v2.2 (2026-06-22)**: Fix RTF style, drug method label, filename suffix consistency, and RANDOM seed support.
 *   **v2.1 (2026-05-06)**: Fix standalone mode backend process lingering on browser close.
 *   **v2.0 (2026-02-03)**: Web Migration, i18n, Visual Wizard.
